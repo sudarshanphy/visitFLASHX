@@ -751,7 +751,11 @@ vtkDataSet *
 avtFLASHXFileFormat::GetMesh(int domain, const char *meshname)
 {
     ReadAllMetaData();
-    
+
+    //sneo
+    //vtkDataArray  *field;
+    //field = GetVar(domain,"radi");
+    //std::cout<<field[1] <<std::endl;
     //sneo: read integer scalars: iprocs(number of blocks in x direction); nxb (total cell in x direction)
     ReadIntegerScalars(fileId);
     //std::cout << "iprocs, nxb: " << simParams.iprocs << ", "<< simParams.nxb<< std::endl; 
@@ -795,11 +799,11 @@ avtFLASHXFileFormat::GetMesh(int domain, const char *meshname)
 			double localmax = xi * localmin; //determine the maximum coordinate of the block
 			double dx = (localmax - localmin)/ncellx; //determine the delta for the block
 	                double c = localmin + (j % ncellx) * dx; //get the left coordinate of the cells
-			
+		        // for debugging purpose	
 			if (j < 20){					  
 			std::cout << "j, c, dx: " <<j <<", "<< c <<", "<< dx <<std::endl;
 			}
-
+                        // 
 			coords[i]->SetComponent(j, 0, c);
 	            }
                     else {		    
@@ -1421,6 +1425,8 @@ avtFLASHXFileFormat::GetVar(int visitDomain, const char *vname)
 
     // Strip prefix (submenu name ("mesh_blockandproc/")) to leave actual var name
     string vn_str = vname;
+    //sneo
+    //std::cout <<"var name: "<<vn_str<<std::endl; //sneo
     size_t pos = vn_str.find("/"); // position of "/" in str
     int theRealDomain = visitDomain;
     string vn_substr = vn_str;
@@ -1538,7 +1544,11 @@ avtFLASHXFileFormat::GetVar(int visitDomain, const char *vname)
         count[1]  = dims[1];
         count[2]  = dims[2];
         count[3]  = dims[3];
-    
+        
+	//sneo
+        //std::cout << "dims 1,2,3: "<< dims[1] << " , "<<
+	//	dims[2] << " , "<< dims[3] <<std::endl;
+
         hid_t dataspace = H5Screate_simple(4, dims, NULL);
         H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, start, stride, count, NULL);
 
