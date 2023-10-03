@@ -1,5 +1,5 @@
 #!/bin/bash
-/usr/local/visit32/bin/xml2cmake -clobber FLASHX.xml
+/usr/local/visit33/bin/xml2cmake -clobber FLASHX.xml
 cmake .
 make
 
