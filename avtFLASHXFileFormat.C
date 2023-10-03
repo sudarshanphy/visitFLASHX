@@ -763,6 +763,8 @@ avtFLASHXFileFormat::GetMesh(int domain, const char *meshname)
     if (string(meshname) == "amr_mesh")
     {
         int theRealDomain = visitIdToFLASHXId[domain];
+	// sneo
+	//std::cout << "theRealDomain, domain = " << theRealDomain << ", "<<domain<<std::endl;
         // rectilinear mesh
         vtkFloatArray  *coords[3];
         int i;
@@ -783,7 +785,7 @@ avtFLASHXFileFormat::GetMesh(int domain, const char *meshname)
                     double minExt = blocks[theRealDomain].minSpatialExtents[i];
                     double maxExt = blocks[theRealDomain].maxSpatialExtents[i];
                     //sneo: custom implementation for X direction
-		    if (i == 0){
+		    if ((i == 0) && ((maxExt/minExt) > 1.0e5)){
 			//std::cout << "min, max: "<<minExt<<", "<<maxExt<<std::endl;
 		        int nxblk = simParams.iprocs; //no of blocks in x-direction
 			int ncellx = simParams.nxb/nxblk; //no of cells per block in x-direction
@@ -2122,7 +2124,8 @@ void avtFLASHXFileFormat::ReadBlockStructure()
     {
         EXCEPTION1(InvalidFilesException, filename.c_str());
     }
-
+    
+    //sneo: get the number of blocks
     numBlocks = gid_dims[0];
     switch (gid_dims[1])
     {
