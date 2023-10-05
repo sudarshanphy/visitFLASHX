@@ -752,9 +752,19 @@ avtFLASHXFileFormat::GetMesh(int domain, const char *meshname)
 {
     ReadAllMetaData();
 
+    //sneo
+    //vtkDataArray  *field;
+    //field = GetVar(domain,"radi");
+    //std::cout<<field[1] <<std::endl;
+    //sneo: read integer scalars: iprocs(number of blocks in x direction); nxb (total cell in x direction)
+    ReadIntegerScalars(fileId);
+    //std::cout << "iprocs, nxb: " << simParams.iprocs << ", "<< simParams.nxb<< std::endl; 
+
     if (string(meshname) == "amr_mesh")
     {
         int theRealDomain = visitIdToFLASHXId[domain];
+	// sneo
+	//std::cout << "theRealDomain, domain = " << theRealDomain << ", "<<domain<<std::endl;
         // rectilinear mesh
         vtkFloatArray  *coords[3];
         int i;
@@ -762,6 +772,8 @@ avtFLASHXFileFormat::GetMesh(int domain, const char *meshname)
         {
             coords[i] = vtkFloatArray::New();
             coords[i]->SetNumberOfTuples(block_ndims[i]);
+            int count = 0; //counter to keep track of blocks
+            
             for (int j = 0 ; j < block_ndims[i] ; j++)
             {
                 if (i+1 > dimension)
@@ -772,9 +784,36 @@ avtFLASHXFileFormat::GetMesh(int domain, const char *meshname)
                 {
                     double minExt = blocks[theRealDomain].minSpatialExtents[i];
                     double maxExt = blocks[theRealDomain].maxSpatialExtents[i];
-                    double c = minExt + double(j) *
-                        (maxExt-minExt) / double(block_ndims[i]-1);
-                    coords[i]->SetComponent(j, 0, c);
+                    //sneo: custom implementation for X direction
+		    if ((i == 0) && ((maxExt/minExt) > 1.0e5)){
+			//std::cout << "min, max: "<<minExt<<", "<<maxExt<<std::endl;
+		        int nxblk = simParams.iprocs; //no of blocks in x-direction
+			int ncellx = simParams.nxb/nxblk; //no of cells per block in x-direction
+							  //
+			if (((j % ncellx) < 1) && (j > 0)){ //update count for each new block
+			    count = count + 1;
+	                }
+
+		        double xi = std::pow((maxExt/minExt),(1.0/nxblk)); //compute xi factor
+		        double localmin = pow(xi,count) * minExt; //determine the minimum coordinate of the block
+			//std::cout<<"xi, localmin: "<<xi<<", "<<localmin<<std::endl;
+			
+			double localmax = xi * localmin; //determine the maximum coordinate of the block
+			double dx = (localmax - localmin)/ncellx; //determine the delta for the block
+	                double c = localmin + (j % ncellx) * dx; //get the left coordinate of the cells
+		        // for debugging purpose	
+			if (j < 20){					  
+			std::cout << "j, c, dx: " <<j <<", "<< c <<", "<< dx <<std::endl;
+			}
+                        // 
+			coords[i]->SetComponent(j, 0, c);
+	            }
+                    else {		    
+                        double c = minExt + double(j) *
+                            (maxExt-minExt) / double(block_ndims[i]-1);
+			//std::cout << "j, c" <<j <<", "<< c <<", "<<std::endl;
+                        coords[i]->SetComponent(j, 0, c);
+		    }
                 }
             }
         }
@@ -1388,6 +1427,8 @@ avtFLASHXFileFormat::GetVar(int visitDomain, const char *vname)
 
     // Strip prefix (submenu name ("mesh_blockandproc/")) to leave actual var name
     string vn_str = vname;
+    //sneo
+    //std::cout <<"var name: "<<vn_str<<std::endl; //sneo
     size_t pos = vn_str.find("/"); // position of "/" in str
     int theRealDomain = visitDomain;
     string vn_substr = vn_str;
@@ -1505,7 +1546,11 @@ avtFLASHXFileFormat::GetVar(int visitDomain, const char *vname)
         count[1]  = dims[1];
         count[2]  = dims[2];
         count[3]  = dims[3];
-    
+        
+	//sneo
+        //std::cout << "dims 1,2,3: "<< dims[1] << " , "<<
+	//	dims[2] << " , "<< dims[3] <<std::endl;
+
         hid_t dataspace = H5Screate_simple(4, dims, NULL);
         H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, start, stride, count, NULL);
 
@@ -2079,7 +2124,8 @@ void avtFLASHXFileFormat::ReadBlockStructure()
     {
         EXCEPTION1(InvalidFilesException, filename.c_str());
     }
-
+    
+    //sneo: get the number of blocks
     numBlocks = gid_dims[0];
     switch (gid_dims[1])
     {
@@ -3227,6 +3273,9 @@ avtFLASHXFileFormat::ReadIntegerScalars(hid_t file_id)
             simParams.total_blocks = is[i].value;
         else if (strncmp(is[i].name, "nstep", 5) == 0)
             simParams.nsteps = is[i].value;
+	//sneo: store the number of cores in the x-direction
+        else if (strncmp(is[i].name, "iprocs", 6) == 0)
+            simParams.iprocs = is[i].value;
     } 
     // Done with the variable; don't leak it
     H5Tclose(string20);
@@ -3260,7 +3309,9 @@ void
 avtFLASHXFileFormat::ReadRealScalars(hid_t file_id)
 {
     // Should only be used for FLASHX3 files
-
+    
+    //sneo: print file format version
+    //std::cout << "sneo fileversion, FFV8, FFV9: "<< fileFormatVersion << ", "<< FLASH3_FFV8 << ", "<< FLASH3_FFV9 << std::endl; 
     if (fileFormatVersion < FLASH3_FFV8)
         return;
 
